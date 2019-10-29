@@ -6,9 +6,6 @@ import static org.dentinger.neo4j.domain.Constants.*;
 
 public interface DataBuilder {
 
-
-
-
     static Data build(Map rawData) {
         return new Data (
                 id(rawData),
