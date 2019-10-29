@@ -1,0 +1,133 @@
+version = '2.3.3'
+
+buildscript {
+  repositories {
+    mavenCentral()
+    mavenLocal()
+    jcenter()
+    
+  }
+  dependencies {
+    classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
+  }
+  dependencies {
+    classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.4.0"
+  }
+}
+
+allprojects {
+  apply plugin: "com.jfrog.artifactory"
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'jacoco'
+apply plugin: 'maven'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+
+group = 'org.dentinger.neo4j'
+
+description = "Sample Neo4j Procedures"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+
+repositories {
+      mavenLocal()
+      mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.json', name: 'json', version:'20180813'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version:'2.9.8'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+
+    compileOnly 'org.projectlombok:lombok:1.18.8'
+    annotationProcessor 'org.projectlombok:lombok:1.18.8'
+  
+    testCompile group: 'org.neo4j.test', name: 'neo4j-harness', version:'3.5.9'
+    testCompile group: 'org.neo4j.driver', name: 'neo4j-java-driver', version:'1.7.2'
+    testCompile group: 'junit', name: 'junit', version:'4.12'
+    testCompile group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.0'
+    compileOnly group: 'org.neo4j', name: 'neo4j', version:'3.5.9'
+
+}
+
+test {
+  testLogging {
+    afterSuite { desc, result ->
+      if (!desc.parent) { // will match the outermost suite
+        println "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+      }
+    }
+  }
+}
+
+
+test.finalizedBy(project.tasks.jacocoTestReport)
+
+classes.doFirst {writeVersionFile }
+
+jar.doFirst {
+  def outputPath =  project.sourceSets.main.output.resourcesDir
+  new File(String.format("%s/%s", outputPath, 'version.txt')).write(project.version)
+}
+
+shadowJar.doFirst {
+  def outputPath =  project.sourceSets.main.output.resourcesDir
+  new File(String.format("%s/%s", outputPath, 'version.txt')).write(project.version)
+
+}
+
+jacocoTestReport {
+  reports {
+    html {
+      enabled true
+    }
+    xml {
+      enabled true
+    }
+
+  }
+}
+
+task integrationTest(type: Test) {
+  useJUnit {
+    include "**/*IntegrationTest.class"
+  }
+}
+
+
+task sourceJar(type: Jar, dependsOn: classes) {
+  from sourceSets.main.allSource
+}
+
+
+task printVersion {
+  doLast {
+    println project.version
+  }
+}
+
+task writeVersionFile() {
+  println("Writing files..")
+  doLast {
+    new File(String.format("%s/%s", buildDir, 'version.txt')).write(project.version)
+
+  }
+}
+
+wrapper {
+  gradleVersion = '5.6.2'
+  distributionUrl = distributionUrl.replace("bin", "all")
+}
+
+tasks.withType(Test) {
+  maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+}
