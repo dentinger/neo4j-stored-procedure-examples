@@ -16,7 +16,7 @@ import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.fail;
 import static org.neo4j.driver.v1.Values.parameters;
 
-public class SimpleNodeCreationTest {
+public class SimpleNodeAndSubNodeCreationTest {
 
     @Rule
     public Neo4jRule neo4j = new Neo4jRule()
@@ -39,21 +39,27 @@ public class SimpleNodeCreationTest {
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
                 Map<String, Object> datas = objectMapper
-                        .readValue(new File("src/test/resources/simpleData_Single.json"),
+                        .readValue(new File("src/test/resources/simpleData_Single_With_SubData.json"),
                                 new TypeReference<Map<String,Object>>(){});
 
                 List dataList = (ArrayList)datas.get("dataList");
 
                 StatementResult result =
-                        session.run("CALL sample.create.simple({params})",
+                        session.run("CALL sample.create.subdata({params})",
                                 parameters("params", dataList));
 
                 //validate the result
                 List<Record> recordList = result.list();
                 assertEquals("SUCCESS", recordList.get(0).get("message").asString());
 
-                result = session.run("Match (d:Data) return count(d)");
-                assertEquals(1, result.single().get(0).asInt());
+                result = session.run("Match (d:Data)  return count(d)");
+                assertEquals("Only should have been one Data Node", 1, result.single().get(0).asInt());
+
+                result = session.run("Match (s:SubData) return count(s)");
+                assertEquals("Only should have been one SubData Node",1, result.single().get(0).asInt());
+
+                result = session.run("Match (d:Data) -[:DATA_CONTAINS]-> (s:SubData) return count(s)");
+                assertEquals("There should have been one relationship", 1, result.single().get(0).asInt());
                 session.close(); //forces the exception to get thrown
 
             } catch (Exception e) {
